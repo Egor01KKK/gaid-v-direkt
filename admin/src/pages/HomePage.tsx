@@ -493,7 +493,9 @@ export function HomePage() {
         {problem ? (
           <div className="alert alert-danger">
             <strong>
-              Последняя отправка не удалась ({problem.action === 'private_reply' ? 'сообщение в директ' : 'ответ под комментарием'},{' '}
+              {problem.action === 'webhook'
+                ? 'Робот не принимает комментарии ('
+                : `Последняя отправка не удалась (${problem.action === 'private_reply' ? 'сообщение в директ' : 'ответ под комментарием'}, `}
               {new Date(problem.at).toLocaleString('ru-RU')}).
             </strong>{' '}
             {problem.hint}

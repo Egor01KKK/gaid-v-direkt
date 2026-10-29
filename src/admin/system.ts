@@ -3,12 +3,13 @@ import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
-import { apiAttempts, auditLogs, automationRuns, instagramAccounts, systemSettings } from '../database/schema';
+import { apiAttempts, auditLogs, automationRuns, instagramAccounts, systemSettings, webhookEvents } from '../database/schema';
 import { csrfMiddleware } from '../security/csrf';
 import { adminApiRateLimitMiddleware } from '../security/rate-limit';
 import { requireAdminAuth } from './auth';
 import { LOCAL_UTC_OFFSET_MS } from '../shared/timezone';
 import { hintForMetaError } from '../meta/error-hints';
+import { INVALID_SIGNATURE_EVENT } from '../webhook/receive-webhook';
 
 const SETTINGS_ID = 'default';
 
@@ -135,6 +136,22 @@ export function createSystemRoutes() {
   // 最近一次成功或從未送出 → problem: null。
   app.get('/last-problem', adminApiRateLimitMiddleware(), async (c) => {
     const db = createDb(c.env.DB);
+    // Meta присылает уведомления, а робот их отклоняет (неверная подпись), и после этого
+    // ни одного нормального уведомления не было — значит, секрет приложения сменили.
+    const lastEvent = (
+      await db.select().from(webhookEvents).orderBy(desc(webhookEvents.receivedAt)).limit(1)
+    )[0];
+    if (lastEvent && lastEvent.eventType === INVALID_SIGNATURE_EVENT) {
+      return c.json({
+        problem: {
+          at: lastEvent.lastReceivedAt,
+          action: 'webhook',
+          metaErrorCode: null,
+          metaErrorMessage: null,
+          hint: 'Робот не принимает уведомления о комментариях: секрет приложения Meta не совпадает (скорее всего, его сбросили в кабинете Meta). Запустите установщик ещё раз и вставьте новый секрет — тогда робот снова заработает.',
+        },
+      });
+    }
     const last = (
       await db.select().from(apiAttempts).orderBy(desc(apiAttempts.completedAt)).limit(1)
     )[0];

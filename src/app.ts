@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { createAdminRoutes } from './admin/routes';
 import type { CommentEventMessage } from './queue/producer';
+import { createSetupRoutes } from './setup/diagnostics';
 import { createWebhookRoutes } from './webhook/routes';
 
 // Cloudflare 原生 Rate Limiting binding 的最小介面（wrangler 4.86 的 ratelimits）。
@@ -19,6 +20,8 @@ export type AppBindings = {
   ADMIN_SESSION_SECRET: string;
   META_GRAPH_API_VERSION: string;
   META_BASE_URL?: string;
+  // Ключ для проверки «всё ли работает» из мастера установки (GET /api/setup/diagnostics).
+  SETUP_TOKEN?: string;
   APP_ENV: string;
   // 隱私政策頁的自訂聯絡方式（選填，純文字）。未設定時顯示通用文字，不點名任何身分。
   PRIVACY_CONTACT?: string;
@@ -68,6 +71,7 @@ export function createApp() {
 
   app.route('/api/admin', createAdminRoutes());
   app.route('/api/webhooks', createWebhookRoutes());
+  app.route('/api/setup', createSetupRoutes());
 
   // 管理後台 SPA（React）由 ASSETS binding 提供。ASSETS 目錄對應網址根目錄，但前端
   // build base 是 /admin/，因此在此把 /admin 前綴映射到實際 asset 路徑：

@@ -45,6 +45,9 @@
   .note { color: var(--muted); font-size: 14px; }
   .alert { border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
   .alert.bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .alert.bad .what { font-weight: 600; margin: 0 0 6px; }
+  .alert.bad ol { margin: 6px 0 0; padding-left: 20px; } .alert.bad li { margin: 4px 0; }
+  .alert.bad .guide { margin: 8px 0 0; font-size: 14px; opacity: .8; }
   details pre { white-space: pre-wrap; font: 12px ui-monospace, Menlo, monospace; background: var(--code); padding: 10px; border-radius: 8px; max-height: 300px; overflow: auto; }
   details > summary { cursor: pointer; color: var(--accent); }
   .page { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; margin: 6px 0; font-weight: 400; }
@@ -178,8 +181,19 @@
       <li>Напишите ответ под комментарием и текст сообщения в директ со ссылкой на гайд (надёжнее — через <b class="ui">Добавить кнопку со ссылкой</b>) → <b class="ui">Сохранить</b> → <b class="ui">Включить</b>.</li>
     </ol>
 
-    <h3>д) Проверка</h3>
-    <p>С <b>другого</b> аккаунта (свои комментарии робот пропускает) напишите ключевое слово под постом. Через несколько секунд придёт сообщение в директ — если тот аккаунт не подписан на вас, ищите в папке <b>«Запросы»</b>. Потом появится ответ под комментарием.</p>
+  </section>
+
+  <section class="card hidden" id="c-check">
+    <h2><span class="num">6</span>Проверка: всё ли работает</h2>
+    <p>Мастер сам проверит всю цепочку: комментарий → робот → правило → директ → ответ. Если где-то оборвётся — скажет, что именно исправить.</p>
+    <ol>
+      <li>Сначала сделайте шаги 5а–5г выше (вход в админку, переключатель в Instagram, публикация приложения, правило).</li>
+      <li>Нажмите <b class="ui">Начать проверку</b>.</li>
+      <li>Когда мастер попросит — с <b>другого</b> аккаунта Instagram напишите под постом ключевое слово. На свои комментарии робот не отвечает.</li>
+    </ol>
+    <div class="row"><button id="btn-check">Начать проверку</button><span id="check-msg" class="note"></span></div>
+    <ul class="steps" id="check-steps"></ul>
+    <div id="check-extra"></div>
   </section>
 </main>
 
@@ -209,33 +223,50 @@ async function refreshCf() {
     $('cf-state').textContent = s.loggedIn ? '✓ Вход выполнен' + (s.email ? ' (' + s.email + ')' : '') : 'Вы ещё не вошли в Cloudflare.';
     $('btn-login').classList.toggle('hidden', s.loggedIn);
     $('c-cf').classList.toggle('done', s.loggedIn);
+    if (s.installedUrl) showAfter(s.installedUrl);
   } catch (e) { $('cf-state').textContent = 'Не удалось проверить: ' + e.message; }
 }
 
 const ICON = { wait: '○', run: '◌', ok: '✓', fail: '✗', warn: '!' };
 let polling = null;
+function renderError(err, box) {
+  const d = document.createElement('div'); d.className = 'alert bad';
+  const what = document.createElement('p'); what.className = 'what'; what.textContent = err.what || err.message; d.appendChild(what);
+  if (err.todo && err.todo.length) {
+    const p = document.createElement('p'); p.textContent = 'Что сделать:'; p.style.margin = '0'; d.appendChild(p);
+    const ol = document.createElement('ol');
+    for (const t of err.todo) { const li = document.createElement('li'); li.textContent = t; ol.appendChild(li); }
+    d.appendChild(ol);
+  }
+  if (err.guide) { const g = document.createElement('p'); g.className = 'guide'; g.textContent = 'Подробно — в гайде (README), ' + err.guide + '.'; d.appendChild(g); }
+  box.appendChild(d);
+  if (err.details) {
+    const det = document.createElement('details');
+    det.innerHTML = '<summary>Технические подробности (для того, кто помогает)</summary><pre></pre>';
+    det.querySelector('pre').textContent = err.details; box.appendChild(det);
+  }
+}
 function render(j) {
   if (!j || !j.steps) return;
-  $('c-progress').classList.remove('hidden');
-  $('progress-title').textContent = j.running ? 'Выполняется…' : (j.error ? 'Остановилось' : 'Готово');
-  $('steps').innerHTML = '';
+  const isCheck = j.kind === 'check';
+  const list = isCheck ? $('check-steps') : $('steps');
+  if (!isCheck) {
+    $('c-progress').classList.remove('hidden');
+    $('progress-title').textContent = j.running ? 'Выполняется…' : (j.error ? 'Остановилось' : 'Готово');
+  } else {
+    $('check-msg').textContent = j.running ? 'Проверяю…' : (j.error ? 'Нашлась проблема — см. ниже' : '✓ Всё работает');
+  }
+  list.innerHTML = '';
   for (const s of j.steps) {
     const li = document.createElement('li'); li.className = 's-' + s.status;
     li.innerHTML = '<span class="ico"></span><span><span class="t"></span><br><span class="note"></span></span>';
     li.querySelector('.ico').textContent = ICON[s.status] || '○';
     li.querySelector('.t').textContent = s.title;
     li.querySelector('.note').textContent = s.note || '';
-    $('steps').appendChild(li);
+    list.appendChild(li);
   }
-  const extra = $('job-extra'); extra.innerHTML = '';
-  if (j.error) {
-    const d = document.createElement('div'); d.className = 'alert bad'; d.textContent = j.error.message; extra.appendChild(d);
-    if (j.error.details) {
-      const det = document.createElement('details');
-      det.innerHTML = '<summary>Технические подробности</summary><pre></pre>';
-      det.querySelector('pre').textContent = j.error.details; extra.appendChild(det);
-    }
-  }
+  const extra = isCheck ? $('check-extra') : $('job-extra'); extra.innerHTML = '';
+  if (j.error) renderError(j.error, extra);
   if (j.kind === 'meta' && !j.running && j.result) {
     showPages(j.result);
     // поля чистим только после успешной проверки: при ошибке не нужно вставлять всё заново
@@ -247,7 +278,7 @@ function render(j) {
   }
   if (j.kind === 'login' && !j.running) refreshCf();
   const busy = j.running;
-  $('btn-meta').disabled = busy; $('btn-login').disabled = busy;
+  $('btn-meta').disabled = busy; $('btn-login').disabled = busy; $('btn-check').disabled = busy;
   $('btn-install').disabled = busy || !selectedPage;
 }
 function poll() {
@@ -255,7 +286,11 @@ function poll() {
   polling = setInterval(async () => {
     const j = await api('/api/job').catch(() => null);
     render(j);
-    if (j && !j.running) clearInterval(polling);
+    if (j && !j.running) {
+      clearInterval(polling);
+      // ошибка может оказаться ниже кнопки, которую нажали, — показываем её
+      if (j.error) (j.kind === 'check' ? $('check-extra') : $('job-extra')).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }, 1000);
 }
 
@@ -283,6 +318,7 @@ function showPages(r) {
 function showAfter(url) {
   store.set('url', url);
   $('c-after').classList.remove('hidden');
+  $('c-check').classList.remove('hidden');
   $('v-admin').textContent = url + '/admin';
   $('v-privacy').textContent = url + '/privacy';
 }
@@ -314,6 +350,10 @@ $('btn-meta').onclick = async () => {
     await api('/api/meta', { appId: $('appId').value, appSecret: $('appSecret').value, userToken: $('userToken').value });
     poll();
   } catch (e) { $('meta-msg').textContent = e.message; }
+};
+$('btn-check').onclick = async () => {
+  $('check-msg').textContent = '';
+  try { await api('/api/check', {}); poll(); } catch (e) { $('check-msg').textContent = e.message; }
 };
 $('btn-install').onclick = async () => {
   try { await api('/api/install', { pageId: selectedPage }); poll(); } catch (e) { $('install-msg').textContent = e.message; }

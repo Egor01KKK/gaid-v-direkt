@@ -3,7 +3,8 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../src/database/schema';
-import { consumeCommentEvents } from '../../src/queue/consumer';
+import { eq } from 'drizzle-orm';
+import { consumeCommentEvents, outcomeStatus } from '../../src/queue/consumer';
 import { applyMigrations, createD1Shim } from '../helpers/d1-shim';
 
 let sqlite: Database.Database;
@@ -106,5 +107,21 @@ describe('consumeCommentEvents — Meta host', () => {
     await consumeCommentEvents(b as never, env() as never);
     expect(urls).toHaveLength(2);
     for (const u of urls) expect(u.startsWith('https://graph.instagram.com/v21.0/')).toBe(true);
+  });
+});
+
+describe('consumeCommentEvents — итог обработки для диагностики', () => {
+  it('records the outcome in webhook_events.status', async () => {
+    const { batch: b } = batch();
+    await consumeCommentEvents(b as never, env({ META_BASE_URL: 'https://graph.facebook.com' }) as never);
+    const db = drizzle(sqlite, { schema });
+    const [evt] = await db.select().from(schema.webhookEvents).where(eq(schema.webhookEvents.id, 'evt'));
+    expect(evt.status).toBe('completed');
+    expect(evt.processedAt).not.toBeNull();
+  });
+
+  it('labels skips with their reason', () => {
+    expect(outcomeStatus({ kind: 'skipped', reason: 'own_comment' })).toBe('skipped:own_comment');
+    expect(outcomeStatus({ kind: 'no_match' })).toBe('no_match');
   });
 });

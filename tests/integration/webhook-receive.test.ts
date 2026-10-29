@@ -78,8 +78,11 @@ describe('POST /api/webhooks/meta/instagram', () => {
     const res = await post(body, 'sha256=deadbeef');
     expect(res.status).toBe(401);
     expect(enqueued).toHaveLength(0);
-    const rows = drizzle(sqlite, { schema });
-    expect(await rows.select().from(webhookEvents)).toHaveLength(0);
+    // Тело не сохраняется — только отметка «была неверная подпись» (одна на минуту).
+    await post(body, 'sha256=deadbeef');
+    const rows = await drizzle(sqlite, { schema }).select().from(webhookEvents);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ eventType: 'invalid_signature', signatureValid: 0, rawPayload: '{}', instagramCommentId: null });
   });
 
   it('stores the event and enqueues on a valid signature', async () => {

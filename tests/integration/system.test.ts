@@ -212,3 +212,20 @@ describe('last-problem — 最近一次送出失敗的提示', () => {
     expect(res).toEqual({ problem: null });
   });
 });
+
+describe('last-problem — неверная подпись уведомлений', () => {
+  it('reports rejected webhooks when the last event had an invalid signature', async () => {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.webhookEvents).values({
+      id: 'inv',
+      eventKey: 'invalid_signature:2026-10-29T10:00',
+      eventType: 'invalid_signature',
+      rawPayload: '{}',
+      signatureValid: 0,
+      status: 'invalid_signature',
+    });
+    const res = await (await createApp().fetch(get('/last-problem'), env)).json();
+    expect(res.problem.action).toBe('webhook');
+    expect(res.problem.hint).toContain('секрет приложения');
+  });
+});

@@ -22,6 +22,7 @@ export async function handleWebhookReceive(
   if (!valid) {
     // 驗證失敗不得進入 Queue，寫安全 log（不記 body 內容）。
     logger.warn({ action: 'webhook.signature_invalid', httpStatus: 401 });
+    await recordInvalidSignature(c.env);
     return c.text('invalid signature', 401);
   }
 
@@ -117,4 +118,28 @@ export async function handleWebhookReceive(
 
   // 一律快速回 200，即使沒有可處理的事件（避免 Meta 重送）。
   return c.text('ok', 200);
+}
+
+// Неверная подпись почти всегда значит, что секрет приложения в Meta сбросили, а роботу
+// не обновили. Тело не сохраняем: одна строка-отметка на минуту, чтобы мастер и админка
+// могли это показать.
+export const INVALID_SIGNATURE_EVENT = 'invalid_signature';
+
+async function recordInvalidSignature(env: AppBindings): Promise<void> {
+  try {
+    const minute = new Date().toISOString().slice(0, 16);
+    await createDb(env.DB)
+      .insert(webhookEvents)
+      .values({
+        id: crypto.randomUUID(),
+        eventKey: `${INVALID_SIGNATURE_EVENT}:${minute}`,
+        eventType: INVALID_SIGNATURE_EVENT,
+        rawPayload: '{}',
+        signatureValid: 0,
+        status: INVALID_SIGNATURE_EVENT,
+      })
+      .onConflictDoNothing();
+  } catch {
+    // Отметка — только для диагностики.
+  }
 }
