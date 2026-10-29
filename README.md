@@ -58,6 +58,6 @@ npm test && npm run lint && npm run typecheck
 
 Мастер установки — `installer/` (локальный сервер на 127.0.0.1, секреты передаются в wrangler через stdin и не пишутся на диск). Вход через Facebook включается секретом `META_BASE_URL=https://graph.facebook.com`.
 
-## Откуда код
+## Лицензия
 
-Основа — [instagram-comment-dm-bot](https://github.com/pjwang2022/instagram-comment-dm-bot) (MIT, © PJ Wang). В «Гайд в директ» добавлено: вход через Facebook (страница + `me/messages`), порядок «сначала DM, потом ответ», исправление потери DM после повторов, русский интерфейс и политика конфиденциальности, установщик без терминала и мастер подключения Meta. Лицензия — MIT, см. [LICENSE](LICENSE).
+MIT, см. [LICENSE](LICENSE).
