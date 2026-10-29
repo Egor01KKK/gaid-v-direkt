@@ -358,15 +358,24 @@ async function install({ pageId }) {
   ok(6, 'Робот отвечает');
 
   start(7);
-  const sub = await graph('POST', `${meta.appId}/subscriptions`, {
-    object: 'instagram',
-    callback_url: `${url}/api/webhooks/meta/instagram`,
-    fields: 'comments',
-    verify_token: verifyToken,
-    include_values: 'true',
-    access_token: `${meta.appId}|${meta.appSecret}`,
-  });
-  if (!sub.ok) return fail(7, `Meta не включила уведомления: ${sub.error}`);
+  // Cloudflare раскатывает новую версию по миру несколько секунд: наш запрос уже видит новый
+  // ключ проверки, а Meta (из США) может ещё попасть на старую версию и получить 403 (#2200).
+  // Поэтому при #2200 ждём и повторяем.
+  let sub;
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    sub = await graph('POST', `${meta.appId}/subscriptions`, {
+      object: 'instagram',
+      callback_url: `${url}/api/webhooks/meta/instagram`,
+      fields: 'comments',
+      verify_token: verifyToken,
+      include_values: 'true',
+      access_token: `${meta.appId}|${meta.appSecret}`,
+    });
+    if (sub.ok || !/\b2200\b/.test(sub.error ?? '')) break;
+    job.steps[7].note = `Meta ещё видит старую версию робота — жду и пробую снова (${attempt} из 12)…`;
+    await sleep(Number(process.env.WIZARD_RETRY_MS || 10_000));
+  }
+  if (!sub.ok) return fail(7, `Meta не включила уведомления: ${sub.error}. Подождите минуту и нажмите «Установить робота» ещё раз.`);
   ok(7, 'Instagram → comments → ваш робот');
 
   start(8);
