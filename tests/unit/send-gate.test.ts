@@ -6,14 +6,14 @@ import * as schema from '../../src/database/schema';
 import {
   acquireSendPermission,
   minuteWindowStart,
-  taipeiDayWindowStart,
+  localDayWindowStart,
 } from '../../src/automation/send-gate';
 import { applyMigrations } from '../helpers/d1-shim';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any;
 
-// 固定時間：2026-08-01 10:00:00 台北（02:00 UTC）。
+// 固定時間：2026-08-01 05:00:00 莫斯科（02:00 UTC）。
 const NOW = Date.parse('2026-08-01T02:00:00Z');
 
 beforeEach(() => {
@@ -39,13 +39,13 @@ describe('window helpers', () => {
     expect(minuteWindowStart(Date.parse('2026-08-01T02:01:00Z'))).toBe('2026-08-01T02:01:00.000Z');
   });
 
-  it('aligns day windows to the Taipei day start (16:00 UTC of the previous day)', () => {
-    // 2026-08-01 10:00 台北 → 當日台北 00:00 = 2026-07-31T16:00:00Z
-    expect(taipeiDayWindowStart(NOW)).toBe('2026-07-31T16:00:00.000Z');
-    // 台北 23:59（15:59 UTC）仍屬同一天
-    expect(taipeiDayWindowStart(Date.parse('2026-08-01T15:59:00Z'))).toBe('2026-07-31T16:00:00.000Z');
-    // 台北隔日 00:01（16:01 UTC）換窗
-    expect(taipeiDayWindowStart(Date.parse('2026-08-01T16:01:00Z'))).toBe('2026-08-01T16:00:00.000Z');
+  it('aligns day windows to the Moscow day start (21:00 UTC of the previous day)', () => {
+    // 2026-08-01 05:00 莫斯科 → 當日莫斯科 00:00 = 2026-07-31T21:00:00Z
+    expect(localDayWindowStart(NOW)).toBe('2026-07-31T21:00:00.000Z');
+    // 莫斯科 23:59（20:59 UTC）仍屬同一天
+    expect(localDayWindowStart(Date.parse('2026-08-01T20:59:00Z'))).toBe('2026-07-31T21:00:00.000Z');
+    // 莫斯科隔日 00:01（21:01 UTC）換窗
+    expect(localDayWindowStart(Date.parse('2026-08-01T21:01:00Z'))).toBe('2026-08-01T21:00:00.000Z');
   });
 });
 
@@ -134,14 +134,14 @@ describe('acquireSendPermission — automation daily limit', () => {
 
   it('ignores runs from previous Taipei days', async () => {
     await seedRunsToday(1);
-    // 加一筆昨天（台北時間）的 run
+    // 加一筆昨天（莫斯科時間）的 run
     await db.insert(schema.automationRuns).values({
       id: 'run-old',
       automationId: 'auto',
       instagramCommentId: 'c-old',
       instagramMediaId: 'ig-media',
       status: 'matched',
-      createdAt: '2026-07-31T15:00:00.000Z', // 台北 7/31 23:00
+      createdAt: '2026-07-31T15:00:00.000Z', // 莫斯科 7/31 18:00
     });
     const res = await acquireSendPermission(db, { ...baseInput, automationDailyLimit: 1 });
     expect(res.allowed).toBe(true);

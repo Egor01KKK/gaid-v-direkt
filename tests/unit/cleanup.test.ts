@@ -101,7 +101,7 @@ describe('runDataCleanup — send counters', () => {
   it('deletes counters from previous day windows', async () => {
     await db.insert(schema.sendCounters).values([
       { id: 'old', scopeKey: 'public_reply:day', windowStart: iso(3 * DAY_MS), count: 5 },
-      { id: 'today', scopeKey: 'public_reply:day', windowStart: '2026-07-31T16:00:00.000Z', count: 2 },
+      { id: 'today', scopeKey: 'public_reply:day', windowStart: '2026-07-31T21:00:00.000Z', count: 2 },
     ]);
 
     const result = await runDataCleanup(db, NOW);

@@ -1,13 +1,14 @@
 // 統一送出 gate（spec.md 第 19 節的限額面 + 緊急停止貼近 sink 的重查）。
 // 每次外發（公開回覆 / Private Reply）前呼叫：
 //   1. 重讀 emergency stop——修掉「job 開頭查一次、之後不再查」的 TOCTOU 窗口。
-//   2. 自動化每日觸發上限（automations.daily_limit）：以當日（台北時間）該自動化的 run 數判斷。
+//   2. 自動化每日觸發上限（automations.daily_limit）：以當日（當地時間，見 shared/timezone）該自動化的 run 數判斷。
 //   3. 系統每分鐘/每日上限（system_settings.max_*）：以 send_counters 原子 upsert「先保留再發送」，
 //      保留了但最後沒發出的名額只會讓實際量更保守，永遠不會超限（fail-closed）。
 import { and, eq, gte, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '../database/schema';
 import { automationRuns, sendCounters, systemSettings } from '../database/schema';
+import { LOCAL_UTC_OFFSET_MS } from '../shared/timezone';
 
 type SchemaDb = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
 
@@ -24,8 +25,6 @@ export interface SendGateResult {
   reason: SendGateDenialReason | null;
 }
 
-// 台灣不使用日光節約時間，固定 UTC+8。
-const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -33,10 +32,10 @@ export function minuteWindowStart(nowMs: number): string {
   return new Date(Math.floor(nowMs / MINUTE_MS) * MINUTE_MS).toISOString();
 }
 
-// 「每日」以台北日界線計（營運者視角的一天），回傳該日 00:00 台北的 UTC ISO。
-export function taipeiDayWindowStart(nowMs: number): string {
-  const dayStartShifted = Math.floor((nowMs + TAIPEI_OFFSET_MS) / DAY_MS) * DAY_MS;
-  return new Date(dayStartShifted - TAIPEI_OFFSET_MS).toISOString();
+// 「每日」以營運者當地日界線計（見 shared/timezone），回傳該日 00:00 的 UTC ISO。
+export function localDayWindowStart(nowMs: number): string {
+  const dayStartShifted = Math.floor((nowMs + LOCAL_UTC_OFFSET_MS) / DAY_MS) * DAY_MS;
+  return new Date(dayStartShifted - LOCAL_UTC_OFFSET_MS).toISOString();
 }
 
 // 原子保留一個名額：同一 (scope, window) 單列 upsert 遞增並取回新值。
@@ -78,7 +77,7 @@ export async function acquireSendPermission(
   // 2. 自動化每日觸發上限。run 在 gate 之前已建立，count 含當前 run；
   //    超過（> limit）才拒絕，等於 limit 的第 N 個 run 仍可送。
   if (input.automationDailyLimit != null) {
-    const dayStart = taipeiDayWindowStart(nowMs);
+    const dayStart = localDayWindowStart(nowMs);
     const rows = await db
       .select({ n: sql<number>`count(*)` })
       .from(automationRuns)
@@ -105,7 +104,7 @@ export async function acquireSendPermission(
     if (count > minuteCap) return { allowed: false, reason: 'system_minute_limit' };
   }
   if (dayCap != null) {
-    const count = await reserveCounter(db, `${input.actionType}:day`, taipeiDayWindowStart(nowMs));
+    const count = await reserveCounter(db, `${input.actionType}:day`, localDayWindowStart(nowMs));
     if (count > dayCap) return { allowed: false, reason: 'system_daily_limit' };
   }
 

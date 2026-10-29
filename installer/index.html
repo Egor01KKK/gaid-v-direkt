@@ -99,10 +99,15 @@
 
   <section class="card" id="c-meta">
     <h2><span class="num">3</span>Токен и секрет</h2>
-    <h3>а) Токен (Graph API Explorer)</h3>
+    <h3>а) ID приложения</h3>
+    <p>Вверху страницы вашего приложения в кабинете Meta: «ID приложения: 1234…». Скопируйте цифры сюда.</p>
+    <label for="appId">ID приложения</label>
+    <input id="appId" type="text" inputmode="numeric" autocomplete="off" placeholder="только цифры">
+
+    <h3>б) Токен (Graph API Explorer)</h3>
     <ol>
-      <li>Откройте <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a>.</li>
-      <li>Справа <b class="ui">Приложение Meta</b> → выберите своё приложение.</li>
+      <li><a id="explorer-link" href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Откройте Graph API Explorer</a> <span id="explorer-hint" class="muted">— сначала впишите ID приложения выше, тогда ваше приложение будет выбрано само.</span></li>
+      <li>Справа в <b class="ui">Приложение Meta</b> должно стоять ваше приложение. Если там другое — выберите своё.</li>
       <li><b class="ui">Добавить разрешение</b> → раздел <b class="ui">Other</b> → отметьте <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>instagram_manage_messages</code>.</li>
       <li>Там же раздел <b class="ui">Events Groups Pages</b> → отметьте <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>business_management</code>. Должно стать «Выбранные варианты: 7».</li>
       <li>Нажмите синюю <b class="ui">Generate Access Token</b>. В окне Facebook — <b class="ui">Изменить настройки</b> (если есть), затем на всех экранах (Страницы, Компании, Аккаунты Instagram) <b class="ui">Продолжить</b>, в конце <b class="ui">Сохранить</b>.</li>
@@ -111,12 +116,10 @@
     <label for="userToken">Токен из Explorer</label>
     <input id="userToken" type="password" autocomplete="off" placeholder="EA…">
 
-    <h3>б) Секрет и ID приложения</h3>
+    <h3>в) Секрет приложения</h3>
     <p>Кабинет Meta → ваше приложение → слева <b class="ui">Настройки приложения</b> → <b class="ui">Основное</b> → <b class="ui">Секрет приложения</b> → <b class="ui">Показать</b>.</p>
     <label for="appSecret">Секрет приложения</label>
     <input id="appSecret" type="password" autocomplete="off" placeholder="32 символа">
-    <label for="appId">ID приложения</label>
-    <input id="appId" type="text" inputmode="numeric" autocomplete="off" placeholder="только цифры">
 
     <div class="row"><button id="btn-meta">Проверить</button><span id="meta-msg" class="note"></span></div>
     <div id="pages" class="hidden">
@@ -158,9 +161,9 @@
     <p>Пока приложение «в разработке», Meta не присылает комментарии посторонних людей.</p>
     <ol>
       <li>Кабинет Meta → ваше приложение → <b class="ui">Настройки приложения</b> → <b class="ui">Основное</b>.</li>
-      <li><b class="ui">URL Политики конфиденциальности</b>:
+      <li><b class="ui">URL Политики конфиденциальности</b> мастер уже вписал сам. Проверьте, что там стоит эта ссылка (если поле пустое — вставьте её):
         <div class="copy"><code id="v-privacy"></code><button class="ghost" data-copy="v-privacy">Копировать</button></div></li>
-      <li><b class="ui">Удаление данных пользователей</b> → «URL инструкций для удаления данных» → та же ссылка.</li>
+      <li><b class="ui">Удаление данных пользователей</b> → «URL инструкций для удаления данных» → вставьте ту же ссылку.</li>
       <li><b class="ui">Категория</b> → <b class="ui">Бизнес и Страницы</b> → внизу <b class="ui">Сохранить изменения</b>.</li>
       <li>Вверху страницы переключатель <b class="ui">Режим приложения</b>: «режим разработки» → <b class="ui">рабочий режим</b>.</li>
     </ol>
@@ -294,7 +297,14 @@ document.querySelectorAll('[data-done]').forEach((cb) => {
   cb.onchange = () => store.set(k, cb.checked ? '1' : '0');
 });
 $('appId').value = store.get('appId') || '';
-$('appId').oninput = () => store.set('appId', $('appId').value.trim());
+function updateExplorerLink() {
+  const id = $('appId').value.trim();
+  const ok = /^\d{5,}$/.test(id);
+  $('explorer-link').href = 'https://developers.facebook.com/tools/explorer/' + (ok ? id + '/' : '');
+  $('explorer-hint').classList.toggle('hidden', ok);
+}
+$('appId').oninput = () => { store.set('appId', $('appId').value.trim()); updateExplorerLink(); };
+updateExplorerLink();
 
 $('btn-login').onclick = async () => { try { await api('/api/login', {}); poll(); } catch (e) { alert(e.message); } };
 $('btn-meta').onclick = async () => {

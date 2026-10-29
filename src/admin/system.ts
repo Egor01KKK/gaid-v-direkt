@@ -1,12 +1,14 @@
 // 系統控制 Admin API（spec.md 第 16.3–16.5 節）：緊急停止/恢復、系統狀態。
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppBindings } from '../app';
 import { createDb } from '../database/client';
-import { auditLogs, automationRuns, instagramAccounts, systemSettings } from '../database/schema';
+import { apiAttempts, auditLogs, automationRuns, instagramAccounts, systemSettings } from '../database/schema';
 import { csrfMiddleware } from '../security/csrf';
 import { adminApiRateLimitMiddleware } from '../security/rate-limit';
 import { requireAdminAuth } from './auth';
+import { LOCAL_UTC_OFFSET_MS } from '../shared/timezone';
+import { hintForMetaError } from '../meta/error-hints';
 
 const SETTINGS_ID = 'default';
 
@@ -53,20 +55,18 @@ export function createSystemRoutes() {
     const settings = await ensureSettings(db);
     const accounts = await db.select().from(instagramAccounts).limit(1);
 
-    // 「今日」以台北時區（UTC+8）為界——created_at 存 UTC ISO 字串，取台北當日 00:00
+    // 「今日」以營運者當地時區（shared/timezone）為界——created_at 存 UTC ISO 字串，取當地當日 00:00
     // 對應的 UTC 時刻當下界後用字串比較（ISO UTC 字串的字典序＝時間序）。
-    // 用 UTC 日界會讓台北早上 8 點前的觸發被算到「昨天」，頁首顯示 0 造成誤判。
-    const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
-    const taipeiDay = new Date(Date.now() + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
-    const dayStartUtc = new Date(Date.parse(`${taipeiDay}T00:00:00Z`) - TAIPEI_OFFSET_MS).toISOString();
+    const localDay = new Date(Date.now() + LOCAL_UTC_OFFSET_MS).toISOString().slice(0, 10);
+    const dayStartUtc = new Date(Date.parse(`${localDay}T00:00:00Z`) - LOCAL_UTC_OFFSET_MS).toISOString();
 
     const runs = await db.select().from(automationRuns);
     const todayRuns = runs.filter((r: { createdAt: string }) => r.createdAt >= dayStartUtc);
 
-    // DM 趨勢序列（台北時區分桶）：日＝近 30 天、週＝近 12 週（週一起算）、月＝近 12 個月。
-    // 計算都在「平移後的 UTC 時間軸」進行（+8h 後取 UTC 日/週/月界），避免本地時區干擾。
+    // DM 趨勢序列（當地時區分桶）：日＝近 30 天、週＝近 12 週（週一起算）、月＝近 12 個月。
+    // 計算都在「平移後的 UTC 時間軸」進行（平移當地時差後取 UTC 日/週/月界），避免本地時區干擾。
     const DAY_MS = 24 * 60 * 60 * 1000;
-    const shiftedNow = Date.now() + TAIPEI_OFFSET_MS;
+    const shiftedNow = Date.now() + LOCAL_UTC_OFFSET_MS;
     const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
     const monthKey = (ms: number) => new Date(ms).toISOString().slice(0, 7);
     const weekStartMs = (ms: number) => {
@@ -86,7 +86,7 @@ export function createSystemRoutes() {
         keys.map((label) => [label, { label, matched: 0, dmSuccess: 0, failures: 0 }]),
       );
       for (const r of runs) {
-        const p = points.get(keyOf(Date.parse(r.createdAt) + TAIPEI_OFFSET_MS));
+        const p = points.get(keyOf(Date.parse(r.createdAt) + LOCAL_UTC_OFFSET_MS));
         if (!p) continue;
         p.matched += 1;
         if (r.privateReplyStatus === 'success') p.dmSuccess += 1;
@@ -95,7 +95,7 @@ export function createSystemRoutes() {
       return keys.map((k) => points.get(k)!);
     };
 
-    const todayStart = Date.parse(`${taipeiDay}T00:00:00Z`);
+    const todayStart = Date.parse(`${localDay}T00:00:00Z`);
     const dailyKeys = Array.from({ length: 30 }, (_, i) => dayKey(todayStart - (29 - i) * DAY_MS));
     const thisWeekStart = weekStartMs(shiftedNow);
     const weeklyKeys = Array.from({ length: 12 }, (_, i) => dayKey(thisWeekStart - (11 - i) * 7 * DAY_MS));
@@ -128,6 +128,29 @@ export function createSystemRoutes() {
       today: countStats(todayRuns),
       total: countStats(runs),
       series,
+    });
+  });
+
+  // GET last-problem：最近一次送出（公開回覆/DM）若失敗，回傳 Meta 錯誤與給管理者的俄文提示；
+  // 最近一次成功或從未送出 → problem: null。
+  app.get('/last-problem', adminApiRateLimitMiddleware(), async (c) => {
+    const db = createDb(c.env.DB);
+    const last = (
+      await db.select().from(apiAttempts).orderBy(desc(apiAttempts.completedAt)).limit(1)
+    )[0];
+    if (!last || last.failureReason == null) return c.json({ problem: null });
+    return c.json({
+      problem: {
+        at: last.completedAt,
+        action: last.actionType,
+        metaErrorCode: last.metaErrorCode,
+        metaErrorMessage: last.metaErrorMessage,
+        hint: hintForMetaError({
+          metaErrorCode: last.metaErrorCode,
+          metaErrorMessage: last.metaErrorMessage,
+          httpStatus: last.httpStatus,
+        }),
+      },
     });
   });
 

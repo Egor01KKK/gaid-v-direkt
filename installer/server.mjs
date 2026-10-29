@@ -254,10 +254,10 @@ async function diagnoseNoPages(appId, appSecret, userToken) {
       'В окне Facebook не выбрана ни одна страница. Нажмите Generate Access Token ещё раз; когда Facebook спросит «Какие Страницы…», нажмите «Изменить настройки» / «Выбрать», поставьте галочку на свою страницу и Instagram.',
     );
     parts.push(
-      'Если в этом окне нет ни одной страницы — значит, у вас нет страницы Facebook. Её нужно создать и привязать к ней Instagram (Instagram → Настройки → Центр аккаунтов). Напишите Claude — подскажет.',
+      'Если в этом окне нет ни одной страницы — значит, у вас нет страницы Facebook. Её нужно создать и привязать к ней Instagram (Instagram → Настройки → Центр аккаунтов). Как это сделать — в шаге 0 этого мастера.',
     );
   } else {
-    parts.push(`Доступ дан к страницам: ${pageIds.length}, к Instagram: ${igIds.length}, но Meta не отдала их список. Пришлите это сообщение Claude.`);
+    parts.push(`Доступ дан к страницам: ${pageIds.length}, к Instagram: ${igIds.length}, но Meta не отдала их список. Сгенерируйте токен ещё раз и на экранах Facebook отметьте свою страницу и Instagram.`);
   }
   return parts.join(' ');
 }
@@ -275,6 +275,7 @@ async function install({ pageId }) {
     'Жду, пока робот ответит',
     'Включаю уведомления о комментариях в Meta',
     'Подписываю страницу на приложение',
+    'Вписываю в приложение Meta политику конфиденциальности и сайт',
   ];
   newJob('install', T);
   log('=== установка начата ===');
@@ -370,8 +371,20 @@ async function install({ pageId }) {
 
   start(8);
   const ps = await graph('POST', `${pageId}/subscribed_apps`, { subscribed_fields: 'feed', access_token: page.token });
-  if (!ps.ok) warnStep(8, `Meta ответила: ${ps.error}. Пришлите это Claude.`);
+  if (!ps.ok) warnStep(8, `Meta ответила: ${ps.error}. Сохраните этот текст — он поможет разобраться.`);
   else ok(8, 'Готово');
+
+  // Без политики конфиденциальности Meta не даёт перевести приложение в рабочий режим.
+  // Категорию и ссылку удаления данных API не меняет — их владелец ставит руками (шаг 5 мастера).
+  start(9);
+  const app = await graph('POST', meta.appId, {
+    privacy_policy_url: `${url}/privacy`,
+    website_url: url,
+    app_domains: JSON.stringify([new URL(url).host]),
+    access_token: `${meta.appId}|${meta.appSecret}`,
+  });
+  if (!app.ok) warnStep(9, `Не получилось (${app.error}). Впишите ссылку на политику руками — шаг 5.`);
+  else ok(9, `${url}/privacy`);
 
   job.running = false;
   log('=== установка закончена ===');
@@ -408,7 +421,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && u.pathname === '/') {
     if (u.searchParams.get('t') !== TOKEN) {
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('Откройте ссылку, которую дал Claude.');
+      return res.end('Откройте мастер заново: двойной щелчок по «Установить».');
     }
     const html = readFileSync(join(HERE, 'index.html'), 'utf8').replace('__TOKEN__', TOKEN);
     res.writeHead(200, {

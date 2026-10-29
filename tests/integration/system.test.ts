@@ -121,7 +121,7 @@ describe('status — account info', () => {
     expect(status.account).toBeNull();
   });
 });
-describe('status — today（台北時區）與 total 統計', () => {
+describe('status — today（當地時區）與 total 統計', () => {
   it('counts old runs in total but not in today', async () => {
     const db = drizzle(sqlite, { schema });
     await db.insert(schema.automationRuns).values({
@@ -150,7 +150,7 @@ describe('status — today（台北時區）與 total 統計', () => {
   });
 });
 describe('status — series 日/週/月 DM 趨勢序列', () => {
-  it('returns daily(30)/weekly(12)/monthly(12) with runs bucketed by Taipei date', async () => {
+  it('returns daily(30)/weekly(12)/monthly(12) with runs bucketed by local date', async () => {
     const db = drizzle(sqlite, { schema });
     await db.insert(schema.automationRuns).values({
       id: 'run-1',
@@ -172,5 +172,43 @@ describe('status — series 日/週/月 DM 趨勢序列', () => {
     expect(status.series.monthly[11].label).toMatch(/^\d{4}-\d{2}$/);
     // 很久以前的 run 不會出現在近 30 天
     expect(status.series.daily.slice(0, 29).every((d: { dmSuccess: number }) => d.dmSuccess === 0)).toBe(true);
+  });
+});
+
+describe('last-problem — 最近一次送出失敗的提示', () => {
+  async function seedAttempt(id: string, completedAt: string, failure: Partial<typeof schema.apiAttempts.$inferInsert>) {
+    const db = drizzle(sqlite, { schema });
+    await db.insert(schema.apiAttempts).values({
+      id,
+      automationRunId: 'run-x',
+      actionType: 'private_reply',
+      attemptNumber: 1,
+      completedAt,
+      ...failure,
+    });
+  }
+
+  it('returns null when nothing was sent yet', async () => {
+    const res = await (await createApp().fetch(get('/last-problem'), env)).json();
+    expect(res).toEqual({ problem: null });
+  });
+
+  it('returns the latest failure with a Russian hint', async () => {
+    await seedAttempt('a1', '2026-10-28T23:41:56.000Z', {
+      httpStatus: 403,
+      failureReason: 'permission_denied',
+      metaErrorCode: '200',
+      metaErrorMessage: '(#200) The account owner has disabled access to Instagram Direct Messaging Outside of Instagram App.',
+    });
+    const res = await (await createApp().fetch(get('/last-problem'), env)).json();
+    expect(res.problem.action).toBe('private_reply');
+    expect(res.problem.hint).toContain('Allow access to messages');
+  });
+
+  it('clears the problem once a later send succeeds', async () => {
+    await seedAttempt('a1', '2026-10-28T23:41:56.000Z', { httpStatus: 403, failureReason: 'permission_denied', metaErrorCode: '200' });
+    await seedAttempt('a2', '2026-10-29T00:05:53.000Z', { httpStatus: 200, failureReason: null });
+    const res = await (await createApp().fetch(get('/last-problem'), env)).json();
+    expect(res).toEqual({ problem: null });
   });
 });

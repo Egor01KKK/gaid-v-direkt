@@ -317,6 +317,15 @@ function StoryCircle({ story, active, onClick }: { story: Media; active: boolean
   );
 }
 
+// 最近一次送出失敗（/api/admin/system/last-problem）：Meta 錯誤與給管理者的提示。
+interface LastProblem {
+  at: string;
+  action: string;
+  metaErrorCode: string | null;
+  metaErrorMessage: string | null;
+  hint: string;
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<Status | null>(null);
@@ -328,17 +337,20 @@ export function HomePage() {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<string[]>([]);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [problem, setProblem] = useState<LastProblem | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [s, m, o] = await Promise.all([
+      const [s, m, o, p] = await Promise.all([
         apiGet<Status>('/api/admin/system/status'),
         apiGet<{ media: Media[] }>('/api/admin/media?limit=100'),
         apiGet<{ automations: OverviewAutomation[] }>('/api/admin/automations/overview'),
+        apiGet<{ problem: LastProblem | null }>('/api/admin/system/last-problem'),
       ]);
       setStatus(s);
       setMedia(m.media);
       setOverview(o.automations);
+      setProblem(p.problem);
     } catch (e) {
       if ((e as ApiError).status === 401) navigate('/login');
       else setError((e as ApiError).message);
@@ -475,6 +487,22 @@ export function HomePage() {
                 {e}
               </div>
             ))}
+          </div>
+        ) : null}
+
+        {problem ? (
+          <div className="alert alert-danger">
+            <strong>
+              Последняя отправка не удалась ({problem.action === 'private_reply' ? 'сообщение в директ' : 'ответ под комментарием'},{' '}
+              {new Date(problem.at).toLocaleString('ru-RU')}).
+            </strong>{' '}
+            {problem.hint}
+            {problem.metaErrorMessage ? (
+              <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>
+                Ответ Meta: {problem.metaErrorCode ? `(#${problem.metaErrorCode}) ` : ''}
+                {problem.metaErrorMessage}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

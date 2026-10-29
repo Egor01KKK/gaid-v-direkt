@@ -9,7 +9,7 @@ import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '../database/schema';
 import { apiAttempts, loginRateLimits, sendCounters, webhookEvents } from '../database/schema';
 import { loginWindowStart } from '../security/rate-limit';
-import { taipeiDayWindowStart } from '../automation/send-gate';
+import { localDayWindowStart } from '../automation/send-gate';
 
 type SchemaDb = BaseSQLiteDatabase<'sync' | 'async', unknown, typeof schema>;
 
@@ -85,7 +85,7 @@ export async function runDataCleanup(
   const loginRateLimitRowsDeleted = loginDeleted.length;
 
   // 4. 刪除過去日窗的送出限額計數（含舊分鐘窗；今日日窗與今日分鐘窗保留）。
-  const todayStart = taipeiDayWindowStart(nowMs);
+  const todayStart = localDayWindowStart(nowMs);
   const counterDeleted = await db
     .delete(sendCounters)
     .where(lt(sendCounters.windowStart, todayStart))
