@@ -1,0 +1,135 @@
+// 本檔以預設值提交進版控，任何人都不需要修改它：
+// - 一鍵部署（Deploy to Cloudflare 按鈕）：按鈕流程自動開通 D1/Queue 並改寫資源 ID。
+// - 手動部署：`npm run deploy` 自動建立缺少的 Queue 與 D1——wrangler（≥4.45）的
+//   自動開通會在首次部署時建立資料庫，並把 database_id 寫回本檔（只存在你的
+//   本機或你自己的 repo 副本）。
+// 若你會對本 repo 提交程式碼，先執行 `git update-index --skip-worktree wrangler.jsonc`，
+// 避免把寫回的個人資源 ID 提交上去。
+// 機密（INSTAGRAM_APP_SECRET 等）不放這裡：本機開發用 .dev.vars（見 .dev.vars.example），
+// 正式環境用 `wrangler secret put <NAME>` 個別設定。
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ig-comment-dm-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./admin/dist",
+    "binding": "ASSETS",
+    // 根路徑先進 Worker（302 → /admin）；不設的話 assets 會直接回 index.html，
+    // 但 SPA base 是 /admin，在 / 只會渲染空白頁。
+    "run_worker_first": ["/"]
+  },
+  // 一般 Variables（非機密）。預設值即可直接使用；本機開發可在 .dev.vars 覆寫。
+  // 帳號 ID 與聯絡信箱都不需要設定：帳號由 access token 自動註冊（GET /me），
+  // 隱私頁聯絡信箱取自 /admin 首次設定建立的管理者 Email。
+  "vars": {
+    // 串接前請對照 Meta 官方文件確認當下最新的 Graph API 版本號。
+    "META_GRAPH_API_VERSION": "v21.0",
+    "APP_ENV": "production",
+    "LOG_LEVEL": "info"
+  },
+  // 刻意不寫 database_id：wrangler 自動開通會在首次部署時建立資料庫並把 ID 寫回。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ig-comment-dm-db",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  // Cloudflare 原生 Rate Limiting binding：一般 Admin API 每 Session 每分鐘 120 次。
+  // period 只支援 10/60 秒；登入的 15 分鐘窗口改用 login_rate_limits D1 表（見 src/security/rate-limit.ts）。
+  "ratelimits": [
+    {
+      "name": "ADMIN_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "COMMENT_QUEUE",
+        "queue": "ig-comment-events"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "ig-comment-events",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
+  },
+  "triggers": {
+    // 台北時間 04:00（貼文/Reels 每日同步）、08:00（Token 到期檢查）、03:00（資料清理，spec §20）換算 UTC。
+    // 台灣不使用日光節約時間，固定 UTC+8：04:00 Asia/Taipei = 20:00 UTC（前一天）；
+    // 08:00 Asia/Taipei = 00:00 UTC；03:00 Asia/Taipei = 19:00 UTC（前一天）。
+    // 19:00 UTC 的分派邏輯見 src/maintenance/cleanup.ts 的 CLEANUP_CRON。
+    "crons": [
+      "0 20 * * *",
+      "0 0 * * *",
+      "0 19 * * *"
+    ]
+  },
+  // 測試環境：`npm run deploy -- --env staging`。
+  // 獨立的 Worker／D1／Queue／secrets（secrets 要用 `wrangler secret put <NAME> --env staging`
+  // 另外設定），與正式環境零共用；cron 停用（測試用手動同步即可）。
+  "env": {
+    "staging": {
+      "name": "ig-comment-dm-bot-staging",
+      "assets": {
+        "directory": "./admin/dist",
+        "binding": "ASSETS"
+      },
+      "vars": {
+        "META_GRAPH_API_VERSION": "v21.0",
+        "APP_ENV": "staging",
+        "LOG_LEVEL": "debug"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ig-comment-dm-db-staging",
+          "migrations_dir": "drizzle/migrations"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "ADMIN_RATE_LIMITER",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "COMMENT_QUEUE",
+            "queue": "ig-comment-events-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "ig-comment-events-staging",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 3
+          }
+        ]
+      },
+      "triggers": {
+        "crons": []
+      }
+    }
+  }
+}

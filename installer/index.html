@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Гайд в директ — установка</title>
+<style>
+  :root {
+    --bg: #f5f5f2; --card: #fff; --text: #17171a; --muted: #6a6a72; --line: #e3e3de;
+    --accent: #3b5bdb; --ok: #2b8a3e; --warn: #c27a00; --bad: #c92a2a; --soft: #eef1fd; --code: #f1f1ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141416; --card: #1d1d21; --text: #ececf0; --muted: #9a9aa6; --line: #2e2e35;
+      --accent: #7c95ff; --ok: #5bc46e; --warn: #e3a634; --bad: #ff6b6b; --soft: #23263a; --code: #26262c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 780px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+  a { color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 14px 0; }
+  .card h2 { font-size: 18px; margin: 0 0 10px; display: flex; gap: 10px; align-items: center; }
+  .card h3 { font-size: 15px; margin: 16px 0 6px; }
+  .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--soft); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+  .done .num { background: var(--ok); color: #fff; }
+  ol, ul { margin: 6px 0; padding-left: 22px; } li { margin: 6px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  b.ui { background: var(--code); padding: 1px 6px; border-radius: 5px; font-weight: 600; white-space: nowrap; }
+  code { font: 14px ui-monospace, Menlo, monospace; background: var(--code); padding: 1px 5px; border-radius: 5px; }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  input[type=text], input[type=password] { width: 100%; padding: 10px 12px; font: 15px ui-monospace, Menlo, monospace;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--text); }
+  button { font: 600 15px system-ui; padding: 10px 16px; border-radius: 9px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  button.ghost { background: var(--soft); color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  .copy { display: flex; gap: 8px; align-items: stretch; margin: 6px 0; }
+  .copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 9px 11px; }
+  .copy button { padding: 6px 12px; font-size: 14px; }
+  .steps { list-style: none; padding: 0; } .steps li { display: flex; gap: 10px; padding: 3px 0; margin: 0; }
+  .ico { width: 20px; flex: none; text-align: center; }
+  .s-ok .ico { color: var(--ok); } .s-fail .ico { color: var(--bad); } .s-warn .ico { color: var(--warn); } .s-run .ico { color: var(--accent); }
+  .note { color: var(--muted); font-size: 14px; }
+  .alert { border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+  .alert.bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  details pre { white-space: pre-wrap; font: 12px ui-monospace, Menlo, monospace; background: var(--code); padding: 10px; border-radius: 8px; max-height: 300px; overflow: auto; }
+  details > summary { cursor: pointer; color: var(--accent); }
+  .page { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; margin: 6px 0; font-weight: 400; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin: 12px 0 0; }
+  .check input { margin-top: 5px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Гайд в директ — установка</h1>
+  <p class="lead">Человек пишет под вашим постом «+» или кодовое слово → ему приходит сообщение в директ, а под комментарием — ответ. Всё ставится с этой страницы, терминал не нужен. Страница работает только на вашем компьютере: секреты отсюда уходят только в Meta и в ваш Cloudflare.</p>
+
+  <section class="card" id="c-prep">
+    <h2><span class="num">0</span>Подготовка в Instagram (на телефоне, один раз)</h2>
+    <p>Робот работает только с <b>профессиональным</b> Instagram, привязанным к <b>странице Facebook</b>. Так требует Meta.</p>
+    <h3>а) Профессиональный аккаунт</h3>
+    <ol>
+      <li>Instagram → ваш профиль → <b class="ui">Edit profile</b> (Редактировать профиль).</li>
+      <li>Если внизу есть синяя строка <b class="ui">Switch to professional account</b> — нажмите, выберите любую категорию, тип <b class="ui">Creator</b>. Если строки нет — аккаунт уже профессиональный.</li>
+    </ol>
+    <h3>б) Страница Facebook</h3>
+    <ol>
+      <li>Там же, в <b class="ui">Edit profile</b>, в блоке «Profile information» строка <b class="ui">Facebook</b> → <b class="ui">Connect</b>.</li>
+      <li>Войдите в <b>тот же Facebook</b>, через который будете заходить в кабинет Meta на компьютере.</li>
+      <li>Если страницы нет — <b class="ui">Create a Facebook Page</b>, любое название → <b class="ui">Done</b>. В строке «Facebook» должно появиться имя страницы.</li>
+    </ol>
+    <p class="muted">Аккаунт должен быть публичным — у профессиональных аккаунтов так по умолчанию.</p>
+    <label class="check"><input type="checkbox" data-done="prep"> Instagram профессиональный и привязан к странице Facebook</label>
+  </section>
+
+  <section class="card" id="c-cf">
+    <h2><span class="num">1</span>Вход в Cloudflare</h2>
+    <p>Робот живёт бесплатно на Cloudflare, в вашем аккаунте.</p>
+    <p id="cf-state" class="muted">Проверяю…</p>
+    <div class="row"><button id="btn-login" class="ghost hidden">Войти в Cloudflare</button></div>
+    <p class="muted">Откроется сайт Cloudflare: войдите (или зарегистрируйтесь — бесплатно, карта не нужна) и нажмите <b>Allow</b>.</p>
+  </section>
+
+  <section class="card" id="c-app">
+    <h2><span class="num">2</span>Приложение Meta (на компьютере, один раз)</h2>
+    <p>Это «разрешение» от Meta, через которое робот читает комментарии и пишет в директ.</p>
+    <ol>
+      <li>Откройте <a href="https://developers.facebook.com/apps/creation/" target="_blank" rel="noopener">developers.facebook.com/apps/creation</a> (войдите тем же Facebook, что в шаге 0).</li>
+      <li><b>Название</b> — любое, но без слов «IG», «Insta», «Facebook» (Meta их не пропустит). Почта уже подставлена → <b class="ui">Далее</b>.</li>
+      <li>Слева в фильтре выберите <b class="ui">Другое</b>, прокрутите вниз до «Ищете что-то другое?» → отметьте <b class="ui">Другое</b> → <b class="ui">Далее</b>.</li>
+      <li>Тип приложения — <b class="ui">Компания</b> → <b class="ui">Далее</b> → <b class="ui">Создание приложения</b>. Meta попросит пароль от Facebook.</li>
+      <li>Откроется «Доступные продукты». Напротив <b class="ui">Instagram</b> нажмите <b class="ui">Настроить</b>.</li>
+    </ol>
+    <p class="muted">Вверху страницы приложения будет «ID приложения: 1234…» — он понадобится в шаге 3.</p>
+  </section>
+
+  <section class="card" id="c-meta">
+    <h2><span class="num">3</span>Токен и секрет</h2>
+    <h3>а) Токен (Graph API Explorer)</h3>
+    <ol>
+      <li>Откройте <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a>.</li>
+      <li>Справа <b class="ui">Приложение Meta</b> → выберите своё приложение.</li>
+      <li><b class="ui">Добавить разрешение</b> → раздел <b class="ui">Other</b> → отметьте <code>instagram_basic</code>, <code>instagram_manage_comments</code>, <code>instagram_manage_messages</code>.</li>
+      <li>Там же раздел <b class="ui">Events Groups Pages</b> → отметьте <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>business_management</code>. Должно стать «Выбранные варианты: 7».</li>
+      <li>Нажмите синюю <b class="ui">Generate Access Token</b>. В окне Facebook — <b class="ui">Изменить настройки</b> (если есть), затем на всех экранах (Страницы, Компании, Аккаунты Instagram) <b class="ui">Продолжить</b>, в конце <b class="ui">Сохранить</b>.</li>
+      <li>В поле <b class="ui">Маркер доступа</b> появится длинный текст на «EA…». Скопируйте его значком справа от поля и вставьте сюда:</li>
+    </ol>
+    <label for="userToken">Токен из Explorer</label>
+    <input id="userToken" type="password" autocomplete="off" placeholder="EA…">
+
+    <h3>б) Секрет и ID приложения</h3>
+    <p>Кабинет Meta → ваше приложение → слева <b class="ui">Настройки приложения</b> → <b class="ui">Основное</b> → <b class="ui">Секрет приложения</b> → <b class="ui">Показать</b>.</p>
+    <label for="appSecret">Секрет приложения</label>
+    <input id="appSecret" type="password" autocomplete="off" placeholder="32 символа">
+    <label for="appId">ID приложения</label>
+    <input id="appId" type="text" inputmode="numeric" autocomplete="off" placeholder="только цифры">
+
+    <div class="row"><button id="btn-meta">Проверить</button><span id="meta-msg" class="note"></span></div>
+    <div id="pages" class="hidden">
+      <p style="margin-top:14px"><b>Найдено:</b></p>
+      <div id="page-list"></div>
+    </div>
+  </section>
+
+  <section class="card" id="c-install">
+    <h2><span class="num">4</span>Установка робота</h2>
+    <p>Мастер выложит робота в ваш Cloudflare, сохранит ключи и сам включит в Meta уведомления о комментариях. 2–3 минуты.</p>
+    <div class="row"><button id="btn-install" disabled>Установить робота</button><span id="install-msg" class="note">Сначала шаг 3.</span></div>
+  </section>
+
+  <section class="card hidden" id="c-progress">
+    <h2><span class="num">⏳</span><span id="progress-title">Выполняется</span></h2>
+    <ul class="steps" id="steps"></ul>
+    <div id="job-extra"></div>
+  </section>
+
+  <section class="card hidden" id="c-after">
+    <h2><span class="num">5</span>Последние шаги</h2>
+
+    <h3>а) Войдите в админку</h3>
+    <div class="copy"><code id="v-admin"></code><button class="ghost" data-copy="v-admin">Копировать</button></div>
+    <p class="muted">Откройте ссылку. При первом входе придумайте email и пароль (от 12 символов) — восстановления нет, сохраните их. Сделайте это сразу.</p>
+    <label class="check"><input type="checkbox" data-done="admin"> Вошёл в админку</label>
+
+    <h3>б) Разрешите доступ к сообщениям в Instagram (обязательно)</h3>
+    <p>Без этого Meta не даст роботу писать в директ (ошибка «disabled access to Instagram Direct»).</p>
+    <ol>
+      <li>Instagram → профиль → ☰ → <b class="ui">Settings and activity</b>.</li>
+      <li>Раздел «How others can interact with you» → <b class="ui">Messages and story replies</b>.</li>
+      <li><b class="ui">Message requests</b> → блок «Connected tools» → включите <b class="ui">Allow access to messages</b>.</li>
+    </ol>
+    <label class="check"><input type="checkbox" data-done="ig-access"> Переключатель включён</label>
+
+    <h3>в) Опубликуйте приложение Meta</h3>
+    <p>Пока приложение «в разработке», Meta не присылает комментарии посторонних людей.</p>
+    <ol>
+      <li>Кабинет Meta → ваше приложение → <b class="ui">Настройки приложения</b> → <b class="ui">Основное</b>.</li>
+      <li><b class="ui">URL Политики конфиденциальности</b>:
+        <div class="copy"><code id="v-privacy"></code><button class="ghost" data-copy="v-privacy">Копировать</button></div></li>
+      <li><b class="ui">Удаление данных пользователей</b> → «URL инструкций для удаления данных» → та же ссылка.</li>
+      <li><b class="ui">Категория</b> → <b class="ui">Бизнес и Страницы</b> → внизу <b class="ui">Сохранить изменения</b>.</li>
+      <li>Вверху страницы переключатель <b class="ui">Режим приложения</b>: «режим разработки» → <b class="ui">рабочий режим</b>.</li>
+    </ol>
+    <label class="check"><input type="checkbox" data-done="live"> Приложение в рабочем режиме</label>
+
+    <h3>г) Создайте правило</h3>
+    <ol>
+      <li>Опубликуйте пост в Instagram (если ещё нет).</li>
+      <li>Админка → <b class="ui">Обновить список постов</b> → выберите пост → <b class="ui">Новое правило</b>.</li>
+      <li>Ключевые слова: <code>+</code> и/или ваше слово (например, <code>гайд</code>). Для «+» обязательно режим <b class="ui">точно совпадает с одним из слов</b>, иначе сработает на любой комментарий с плюсом.</li>
+      <li>Текст сообщения в директ (ссылка на гайд) и ответ под комментарием → сохранить и включить.</li>
+    </ol>
+
+    <h3>д) Проверка</h3>
+    <p>С <b>другого</b> аккаунта (свои комментарии робот пропускает) напишите ключевое слово под постом. Через несколько секунд придёт сообщение в директ — если тот аккаунт не подписан на вас, ищите в папке <b>«Запросы»</b>. Потом появится ответ под комментарием.</p>
+  </section>
+</main>
+
+<script>
+const TOKEN = '__TOKEN__';
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const res = await fetch(path, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'X-Wizard-Token': TOKEN, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('Ошибка ' + res.status));
+  return data;
+};
+const store = {
+  get(k) { try { return localStorage.getItem('gvd:' + k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem('gvd:' + k, v); } catch {} },
+};
+
+let selectedPage = null;
+
+async function refreshCf() {
+  try {
+    const s = await api('/api/status');
+    $('cf-state').textContent = s.loggedIn ? '✓ Вход выполнен' + (s.email ? ' (' + s.email + ')' : '') : 'Вы ещё не вошли в Cloudflare.';
+    $('btn-login').classList.toggle('hidden', s.loggedIn);
+    $('c-cf').classList.toggle('done', s.loggedIn);
+  } catch (e) { $('cf-state').textContent = 'Не удалось проверить: ' + e.message; }
+}
+
+const ICON = { wait: '○', run: '◌', ok: '✓', fail: '✗', warn: '!' };
+let polling = null;
+function render(j) {
+  if (!j || !j.steps) return;
+  $('c-progress').classList.remove('hidden');
+  $('progress-title').textContent = j.running ? 'Выполняется…' : (j.error ? 'Остановилось' : 'Готово');
+  $('steps').innerHTML = '';
+  for (const s of j.steps) {
+    const li = document.createElement('li'); li.className = 's-' + s.status;
+    li.innerHTML = '<span class="ico"></span><span><span class="t"></span><br><span class="note"></span></span>';
+    li.querySelector('.ico').textContent = ICON[s.status] || '○';
+    li.querySelector('.t').textContent = s.title;
+    li.querySelector('.note').textContent = s.note || '';
+    $('steps').appendChild(li);
+  }
+  const extra = $('job-extra'); extra.innerHTML = '';
+  if (j.error) {
+    const d = document.createElement('div'); d.className = 'alert bad'; d.textContent = j.error.message; extra.appendChild(d);
+    if (j.error.details) {
+      const det = document.createElement('details');
+      det.innerHTML = '<summary>Технические подробности</summary><pre></pre>';
+      det.querySelector('pre').textContent = j.error.details; extra.appendChild(det);
+    }
+  }
+  if (j.kind === 'meta' && !j.running && j.result) {
+    showPages(j.result);
+    // поля чистим только после успешной проверки: при ошибке не нужно вставлять всё заново
+    $('userToken').value = ''; $('appSecret').value = '';
+  }
+  if (j.kind === 'install' && j.result && j.result.url) {
+    showAfter(j.result.url);
+    if (!j.running && !j.error) $('c-install').classList.add('done');
+  }
+  if (j.kind === 'login' && !j.running) refreshCf();
+  const busy = j.running;
+  $('btn-meta').disabled = busy; $('btn-login').disabled = busy;
+  $('btn-install').disabled = busy || !selectedPage;
+}
+function poll() {
+  clearInterval(polling);
+  polling = setInterval(async () => {
+    const j = await api('/api/job').catch(() => null);
+    render(j);
+    if (j && !j.running) clearInterval(polling);
+  }, 1000);
+}
+
+function showPages(r) {
+  const list = $('page-list'); list.innerHTML = '';
+  const usable = r.pages.filter((p) => p.ig && p.ig.id);
+  for (const p of r.pages) {
+    const lab = document.createElement('label'); lab.className = 'page';
+    const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'page'; radio.value = p.id;
+    radio.disabled = !(p.ig && p.ig.id);
+    radio.onchange = () => { selectedPage = p.id; $('btn-install').disabled = false; $('install-msg').textContent = ''; };
+    const span = document.createElement('span');
+    span.textContent = 'Страница «' + p.name + '» → ' + (p.ig && p.ig.id ? 'Instagram @' + p.ig.username : 'Instagram не привязан');
+    lab.append(radio, span); list.appendChild(lab);
+  }
+  if (usable.length === 1) {
+    selectedPage = usable[0].id;
+    list.querySelector('input[value="' + usable[0].id + '"]').checked = true;
+    $('btn-install').disabled = false; $('install-msg').textContent = '';
+  }
+  $('pages').classList.toggle('hidden', r.pages.length === 0);
+  if (!r.missing.length) $('c-meta').classList.add('done');
+}
+
+function showAfter(url) {
+  store.set('url', url);
+  $('c-after').classList.remove('hidden');
+  $('v-admin').textContent = url + '/admin';
+  $('v-privacy').textContent = url + '/privacy';
+}
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-copy]'); if (!b) return;
+  try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = 'Скопировано'; setTimeout(() => (b.textContent = 'Копировать'), 1500); }
+  catch { b.textContent = 'Выделите вручную'; }
+});
+document.querySelectorAll('[data-done]').forEach((cb) => {
+  const k = 'done:' + cb.dataset.done;
+  cb.checked = store.get(k) === '1';
+  cb.onchange = () => store.set(k, cb.checked ? '1' : '0');
+});
+$('appId').value = store.get('appId') || '';
+$('appId').oninput = () => store.set('appId', $('appId').value.trim());
+
+$('btn-login').onclick = async () => { try { await api('/api/login', {}); poll(); } catch (e) { alert(e.message); } };
+$('btn-meta').onclick = async () => {
+  $('meta-msg').textContent = '';
+  try {
+    await api('/api/meta', { appId: $('appId').value, appSecret: $('appSecret').value, userToken: $('userToken').value });
+    poll();
+  } catch (e) { $('meta-msg').textContent = e.message; }
+};
+$('btn-install').onclick = async () => {
+  try { await api('/api/install', { pageId: selectedPage }); poll(); } catch (e) { $('install-msg').textContent = e.message; }
+};
+
+const savedUrl = store.get('url'); if (savedUrl) showAfter(savedUrl);
+refreshCf();
+api('/api/job').then((j) => { if (j && j.steps) { render(j); if (j.running) poll(); } }).catch(() => {});
+</script>
+</body>
+</html>

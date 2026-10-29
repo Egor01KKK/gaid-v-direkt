@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1785403655321,
+      "tag": "0000_organic_monster_badoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785566754449,
+      "tag": "0001_security_controls",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785984011553,
+      "tag": "0002_media_deleted_at",
+      "breakpoints": true
+    }
+  ]
+}
